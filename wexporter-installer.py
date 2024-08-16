@@ -29,8 +29,9 @@ class ServiceManagerApp:
         self.master = master
         master.title('윈도우 익스포터 설치 도우미')
         master.geometry('500x500')
+        master.resizable(False, False)
 
-        self.version = '0.2.0'
+        self.version = '0.3.2'
         self.file_path = tk.StringVar()
         self.service_name = tk.StringVar(value='Prometheus Windows Exporter')
         self.service_description = tk.StringVar(value='Exports Windows metrics for Prometheus')
@@ -72,11 +73,11 @@ class ServiceManagerApp:
             logo_label.pack(side=tk.RIGHT, anchor='ne')
 
         title_font = tkfont.Font(family='Malgun Gothic, Helvetica', size=12, weight='bold')
-        title_label = tk.Label(title_frame, text='윈도우 서버 모니터링 서비스 등록', font=title_font)
+        title_label = tk.Label(title_frame, text='통합 모니터링 - 윈도우 서버 모니터링 서비스 등록', font=title_font)
         title_label.pack(side=tk.TOP, anchor='nw')
 
         verdesc_font = tkfont.Font(family='Malgun Gothic, Helvetica', size=8)
-        verdesc_label = tk.Label(title_frame, text='2024년  |  IT서비스품질관리팀  | ', font=verdesc_font)
+        verdesc_label = tk.Label(title_frame, text='2024년 8월  |  IT서비스품질관리팀  | ', font=verdesc_font)
         verdesc_label.pack(side=tk.LEFT)
         version_font = tkfont.Font(family='Helvetica', size=9, weight='bold', slant='italic')
         version_label = tk.Label(title_frame, text=f'v{self.version}', font=version_font, fg='#FF6347')
@@ -103,7 +104,6 @@ class ServiceManagerApp:
         self.create_service_frame(parent)
         self.create_ip_frame(parent)
         self.create_prometheus_frame(parent)
-        tk.Button(parent, text='서비스 설치', command=self.install_service).pack(pady=20)
 
     def create_download_frame(self, parent):
         download_frame = tk.Frame(parent)
@@ -152,7 +152,8 @@ class ServiceManagerApp:
         service_frame = tk.Frame(parent)
         service_frame.pack(fill='x', padx=10, pady=(0, 5), anchor='w')
 
-        tk.Label(service_frame, text='⑤ 서비스 정보 입력:', anchor='nw').pack(side='left')
+        tk.Label(service_frame, text='⑤ 서비스 정보 입력:', anchor='w').pack(side='left')
+        tk.Button(service_frame, text='서비스 설치', command=self.install_service).pack(side='right')
 
         # name_frame = tk.Frame(service_frame)
         name_frame = tk.Frame(parent)
@@ -191,15 +192,14 @@ class ServiceManagerApp:
 
         tk.Label(prometheus_frame, text='⑦ prometheus.yml 설정 가이드:', anchor='w').pack(anchor='w')
 
-        config_text = tk.Text(prometheus_frame, height=6, width=50)
+        config_text = tk.Text(prometheus_frame, height=6, width=50, font=('Consolas', 10))
         config_text.pack(fill='x', expand=True, padx=(20, 0), pady=(5, 0))
         config_text.insert(tk.END,
-        """- job_name: 'windows_export'
+        """- job_name: 'windows_exporter'
   static_configs:
   - targets: ["{$ip_addr}:9182"]
-        
- # 위의 {$ip_addr}에 사용할 IP 주소를 입력하고
- # 저장한 다음 prometheus 를 재시작해주세요.""")
+ # 위의 ⑥ IP 정보를 참고하여 {$ip_addr}에 값을 입력하고
+ # 저장한 다음 prometheus 프로세스를 재시작해주세요.""")
         config_text.config(state=tk.DISABLED)
 
     def create_uninstall_widgets(self, parent):
