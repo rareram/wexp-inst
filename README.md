@@ -1,7 +1,7 @@
 # windows_exporter 인스톨러
 
 <p align="center">
-  <a href="LICENSE.md">
+  <a href="LICENSE">
     <img src=https://img.shields.io/badge/License-MIT-lightgrey.svg?longCache=true" alt="MIT License">
   </a>
   <a href="https://python.org/downloads">
