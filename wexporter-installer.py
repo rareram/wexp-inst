@@ -9,6 +9,9 @@ from tkinter import filedialog, messagebox, ttk, PhotoImage
 import requests
 import socket
 import win32com.shell.shell as shell
+import win32service
+import win32serviceutil
+import pywintypes
 
 # 관리자 권한 확인 및 실행
 def is_admin():
@@ -17,12 +20,24 @@ def is_admin():
     except:
         return False
 
-def run_as_admin():
-    if not is_admin():
-        script = os.path.abspath(sys.argv[0])
-        params = ' '.join([script] + sys.argv[1:])
-        shell.ShellExecuteEx(lpVerb='runas', lpFile=sys.executable, lpParameters=params)
-        sys.exit(0)
+# def run_as_admin():
+#     try:
+#         if shell.IsUserAnAdmin():
+#             return True
+#         else:
+#             script = os.path.abspath(sys.argv[0])
+#             params = ' '.join([script] + sys.argv[1:])
+#             shell.ShellExecuteEx(lpVerb='runas', lpFile=sys.executable, lpParameters=params)
+#             sys.exit(0)
+#     except Exception as e:
+#         messagebox.showerror("오류", f"관리자 권한으로 실행하는데 실패했습니다: {str(e)}")
+#         return False
+
+    # if not is_admin():
+    #     script = os.path.abspath(sys.argv[0])
+    #     params = ' '.join([script] + sys.argv[1:])
+    #     shell.ShellExecuteEx(lpVerb='runas', lpFile=sys.executable, lpParameters=params)
+    #     sys.exit(0)
 
 class ServiceManagerApp:
     def __init__(self, master):
@@ -31,7 +46,7 @@ class ServiceManagerApp:
         master.geometry('500x500')
         master.resizable(False, False)
 
-        self.version = '0.3.3'
+        self.version = '0.4.0'
         self.file_path = tk.StringVar()
         self.service_name = tk.StringVar(value='Prometheus Windows Exporter')
         self.service_description = tk.StringVar(value='Exports Windows metrics for Prometheus')
@@ -203,21 +218,28 @@ class ServiceManagerApp:
         config_text.config(state=tk.DISABLED)
 
     def create_uninstall_widgets(self, parent):
-        tk.Label(parent, text='제거할 서비스 선택:').pack(pady=10)
+        tk.Label(parent, text='제거할 windows_exporter 서비스 선택:').pack(pady=(10, 0))
 
-        self.service_listbox = tk.Listbox(parent, width=50, height=10)
+        self.service_listbox = tk.Listbox(parent, width=64, height=16, selectmode=tk.SINGLE)
         self.service_listbox.pack(pady=10)
+        self.service_listbox.bind('<Double-1>', self.open_service_properties)
+
+        button_frame = tk.Frame(parent)
+        button_frame.pack(pady=10)
 
         button_width = 15
 
-        refresh_button = tk.Button(button_frame, text='서비스 목록 새로고침', command=self.refresh_service_list, width=button_width)
-        refresh_button.pack(side=tk.LEFT, padx=5)
+        open_services_button = tk.Button(button_frame, text='서비스 관리도구', command=self.open_services, width=button_width)
+        open_services_button.pack(side=tk.LEFT, padx=3)
 
-        uninstall_button = tk.Button(button_frame, text='선택한 서비스 제거', command=self.uninstall_service, width=button_width)
-        uninstall_button.pack(side=tk.LEFT, padx=5)
+        properties_button = tk.Button(button_frame, text='속성 보기', command=self.open_service_properties, width=button_width)
+        properties_button.pack(side=tk.LEFT, padx=3)
 
-        open_services_button = tk.Button(button_frame, text='서비스 열기', command=self.open_services, width=button_width)
-        open_services_button.pack(side=tk.LEFT, padx=5)
+        refresh_button = tk.Button(button_frame, text='목록 새로고침', command=self.refresh_service_list, width=button_width)
+        refresh_button.pack(side=tk.LEFT, padx=3)
+
+        uninstall_button = tk.Button(button_frame, text='서비스 제거', command=self.uninstall_service, width=button_width)
+        uninstall_button.pack(side=tk.LEFT, padx=3)
 
         self.refresh_service_list()
 
@@ -253,7 +275,6 @@ class ServiceManagerApp:
         except Exception as e:
             messagebox.showerror('오류', f'예상치 못한 오류가 발생했습니다: {str(e)}')
 
-
     def select_and_move_file(self):
         filename = filedialog.askopenfilename(
             title='Select windows_exporter-0.27.1-amd64.exe file',
@@ -262,7 +283,7 @@ class ServiceManagerApp:
         if filename:
             dest_dir = r'C:\Program Files\windows_exporter'
             os.makedirs(dest_dir, exist_ok=True)
-            dest_file = os.path.join(dest_dir, 'windows_exporter-0.27.1-amd64.exe')
+            dest_file = os.path.join(dest_dir, 'windows_exporter.exe')
             try:
                 os.replace(filename, dest_file)
                 messagebox.showinfo('Success', f'File moved to {dest_file}')
@@ -293,21 +314,81 @@ class ServiceManagerApp:
             return
 
         try:
+            # 서비스 생성
             self.run_service_command('create', f'sc create "{self.service_name.get()}" binPath= "{self.file_path.get()}" start= auto DisplayName= "{self.service_name.get()}"')
+            # 서비스 설명 설정
             self.run_service_command('describe', f'sc description "{self.service_name.get()}" "{self.service_description.get()}"')
+            # 서비스 실패 시 동작 설정
             self.run_service_command('failure', f'sc failure "{self.service_name.get()}" reset= 86400 actions= restart/60000/restart/60000/restart/60000')
+            # 서비스에 대한 권한 설정
+            self.run_service_command('sdset', f'sc sdset "{self.service_name.get()}" D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)')
+            # 서비스 시작
             self.run_service_command('start', f'sc start "{self.service_name.get()}"')
 
             messagebox.showinfo('Success', '서비스가 성공적으로 설치되고 시작되었습니다!')
             self.refresh_service_list()
         except subprocess.CalledProcessError as e:
-            messagebox.showerror('Error', f'서비스 설치 실패: {e}')
+            error_message = f'서비스 설치 실패: {e}\n\n'
+            error_message += '다음 사항을 확인해 주세요:\n'
+            error_message += '1. 관리자 권한으로 프로그램을 실행했는지 확인하세요.\n'
+            error_message += '2. 안티바이러스 프로그램이 설치를 차단하고 있는지 확인하세요.\n'
+            error_message += '3. windows_exporter 파일이 올바른 위치에 있는지 확인하세요.\n'
+            error_message += '4. 이미 같은 이름의 서비스가 존재하지 않는지 확인하세요.'
+            messagebox.showerror('Error', error_message)
 
     def open_services(self):
         try:
-            subprocess.run(['control', 'services'])
+            subprocess.Popen(['mmc', 'services.msc'], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        except Excpetion as e:
+            messagebox.showerror('Error', f'서비스 관리 도구를 열 수 없습니다: {str(e)}')
+
+    # def open_service_properties(self, event=None):
+    def open_service_properties(self):
+        selection = self.service_listbox.curselection()
+        if not selection:
+            messagebox.showinfo("알림", "서비스를 선택해주세요.")
+            return
+        
+        service_name = self.service_listbox.get(selection[0])
+        try:
+            # 서비스 상태 확인
+            status = win32serviceutil.QueryServiceStatus(service_name)[1]
+            status_str = {
+                win32service.SERVICE_STOPPED: "중지됨",
+                win32service.SERVICE_START_PENDING: "시작 중",
+                win32service.SERVICE_STOP_PENDING: "중지 중",
+                win32service.SERVICE_RUNNING: "실행 중",
+            }.get(status, "알 수 없음")
+
+            # 서비스 정보 가져오기
+            service_info = win32serviceutil.GetServiceClassString(service_name)
+
+            # 정보 표시
+            info = f"서비스 이름: {service_name}\n"
+            info += f"상태: {status_str}\n"
+            info += f"서비스 정보: {service_info}\n"
+
+            messagebox.showinfo("서비스 속성", info)
+
+        except pywintypes.error as e:
+            if e.winerror == 5:   # 액세스 거부
+                messagebox.showerror("오류", "서비스 정보를 가져올 권한이 없습니다. 관리자 권한으로 실행해주세요.")
+            else:
+                messagebox.showerror("오류", f"서비스 정보를 가져오는 도중 오류가 발생했습니다: {str(e)}")
+
+
+    def run_as_admin(cls):
+        try:
+            if shell.IsUserAnAdmin():
+                return True
+            else:
+                script = os.path.abspath(sys.argv[0])
+                params = ' '.join([script] + sys.argv[1:])
+                shell.ShellExecuteEx(lpVerb='runas', lpFile=sys.executable, lpParameters=params)
+                sys.exit(0)
         except Exception as e:
-            messagebox.showerror('Error', f'서비스 열기에 실패했습니다: {str(e)}')
+            messagebox.showerror("오류", f"관리자 권한으로 실행하는데 실패했습니다: {str(e)}")
+            return False
 
     def run_service_command(self, action, command):
         subprocess.run(command, check=True, shell=True)
@@ -315,8 +396,11 @@ class ServiceManagerApp:
     def refresh_service_list(self):
         self.service_listbox.delete(0, tk.END)
         services = self.get_services()
-        for service in services:
+        for index, service in enumerate(services):
             self.service_listbox.insert(tk.END, service)
+            if 'windows_exporter' in service.lower():
+                self.service_listbox.selection_set(index)
+                self.service_listbox.see(index)
 
     def get_services(self):
         services = []
@@ -332,7 +416,7 @@ class ServiceManagerApp:
                     break
         except WindowsError:
             messagebox.showerror('Error', '서비스 목록을 가져오는데 실패했습니다')
-        return services
+        return sorted(services)
 
     def uninstall_service(self):
         selected = self.service_listbox.curselection()
@@ -351,7 +435,9 @@ class ServiceManagerApp:
             messagebox.showerror('Error', f'서비스 제거 실패: {e}')
 
 if __name__ == '__main__':
-    run_as_admin()
+    # run_as_admin()
     root = tk.Tk()
     app = ServiceManagerApp(root)
+    if not app.run_as_admin():
+        messagebox.showwarning("경고", "일부 기능이 제한될 수 있습니다. 관리자 권한으로 다시 실행해 주세요.")
     root.mainloop()
