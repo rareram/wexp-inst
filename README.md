@@ -38,10 +38,14 @@
 pip install -r requirements.txt
 
 pip install pyinstaller
-pyinstaller --onefile wexporter-installer.spec
+pyinstaller -F --noconsole --add-data "github_icon.png;." --add-data "logo.png;." wexporter-installer.py
 ```
 
 ## Releases Notes
+
+### 0.3.3
+
+- '서비스 제거' 탭에 '서비스 열기' 버튼 생성 및 기존 버튼 정렬
 
 ### 0.3.2
 

@@ -31,7 +31,7 @@ class ServiceManagerApp:
         master.geometry('500x500')
         master.resizable(False, False)
 
-        self.version = '0.3.2'
+        self.version = '0.3.3'
         self.file_path = tk.StringVar()
         self.service_name = tk.StringVar(value='Prometheus Windows Exporter')
         self.service_description = tk.StringVar(value='Exports Windows metrics for Prometheus')
@@ -208,8 +208,16 @@ class ServiceManagerApp:
         self.service_listbox = tk.Listbox(parent, width=50, height=10)
         self.service_listbox.pack(pady=10)
 
-        tk.Button(parent, text='서비스 목록 새로고침', command=self.refresh_service_list).pack()
-        tk.Button(parent, text='선택한 서비스 제거', command=self.uninstall_service).pack(pady=20)
+        button_width = 15
+
+        refresh_button = tk.Button(button_frame, text='서비스 목록 새로고침', command=self.refresh_service_list, width=button_width)
+        refresh_button.pack(side=tk.LEFT, padx=5)
+
+        uninstall_button = tk.Button(button_frame, text='선택한 서비스 제거', command=self.uninstall_service, width=button_width)
+        uninstall_button.pack(side=tk.LEFT, padx=5)
+
+        open_services_button = tk.Button(button_frame, text='서비스 열기', command=self.open_services, width=button_width)
+        open_services_button.pack(side=tk.LEFT, padx=5)
 
         self.refresh_service_list()
 
@@ -294,6 +302,12 @@ class ServiceManagerApp:
             self.refresh_service_list()
         except subprocess.CalledProcessError as e:
             messagebox.showerror('Error', f'서비스 설치 실패: {e}')
+
+    def open_services(self):
+        try:
+            subprocess.run(['control', 'services'])
+        except Exception as e:
+            messagebox.showerror('Error', f'서비스 열기에 실패했습니다: {str(e)}')
 
     def run_service_command(self, action, command):
         subprocess.run(command, check=True, shell=True)
