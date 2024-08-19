@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="LICENSE">
-    <img src=https://img.shields.io/badge/License-MIT-lightgrey.svg?longCache=true" alt="MIT License">
+    <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blueviolet.svg?style=flat-square">
   </a>
   <a href="https://python.org/downloads">
     <img alt="Python" src="https://img.shields.io/badge/Python-3776AB.svg?style=flat-square&logo=Python&logoColor=white">
@@ -38,10 +38,18 @@
 pip install -r requirements.txt
 
 pip install pyinstaller
-pyinstaller --onefile wexporter-installer.spec
+pyinstaller -F --noconsole --add-data "github_icon.png;." --add-data "logo.png;." wexporter-installer.py
 ```
 
 ## Releases Notes
+
+### 0.4.0
+
+- '서비스 제거' 탭에 '서비스 열기' 버튼 생성 및 기존 버튼 정렬
+- select_and_move_file 메서드에서 파일 move 작업시 이름에서 버전 제거 적용
+- refresh_service_list 메서드에서 windows_exporter 존재시 미리 선택하기
+- install_service 메서드에서 단순 except 메시지를 가이드로 보강
+- open_services 메서드에서 새콘솔로 서비스 관리도구를 실행하도록하여 메인프로그램 응답없음 현상 회피
 
 ### 0.3.2
 
