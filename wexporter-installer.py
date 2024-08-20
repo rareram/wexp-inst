@@ -46,7 +46,7 @@ class ServiceManagerApp:
         master.geometry('500x500')
         master.resizable(False, False)
 
-        self.version = '0.4.0'
+        self.version = '0.4.1'
         self.file_path = tk.StringVar()
         self.service_name = tk.StringVar(value='Prometheus Windows Exporter')
         self.service_description = tk.StringVar(value='Exports Windows metrics for Prometheus')
@@ -249,8 +249,8 @@ class ServiceManagerApp:
     def download_and_install_msi(self):
         # messagebox.showinfo('Direct Install', 'This function would download and install windows_exporter.msi')
         # webbrowser.open_new('https://github.com/prometheus-community/windows_exporter/releases/download/v0.27.1/windows_exporter-0.27.1-amd64.msi')
-        url = 'https://github.com/prometheus-community/windows_exporter/releases/download/v0.27.1/windows_exporter-0.27.1-amd64.msi'
-        filename = 'windows_exporter-0.27.1-amd64.msi'
+        url = 'https://github.com/prometheus-community/windows_exporter/releases/download/v0.25.1/windows_exporter-0.27.1-amd64.msi'
+        filename = 'windows_exporter-0.25.1-amd64.msi'
 
         try:
             response = requests.get(url)
@@ -277,8 +277,8 @@ class ServiceManagerApp:
 
     def select_and_move_file(self):
         filename = filedialog.askopenfilename(
-            title='Select windows_exporter-0.27.1-amd64.exe file',
-            filetypes=[('Executable files', '*.exe')]
+            title='Select windows_exporter-0.25.1-amd64.msi file',
+            filetypes=[('Executable files', '*.msi')]
         )
         if filename:
             dest_dir = r'C:\Program Files\windows_exporter'
