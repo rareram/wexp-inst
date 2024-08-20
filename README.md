@@ -16,8 +16,6 @@
 
 > 통합모니터링 대시보드 구축 프로젝트 중 윈도우 서버들을 대상으로 Prometheus의 windows_exporter의 일관적인 deployment를 위해 다운로드, 윈도우 서비스 등록/제거 등의 작업을 표준화하도록 하는 유틸리티
 
-![wexp_inst1](https://github.com/user-attachments/assets/b95fbe56-e709-4a81-8417-a5dc93cd91f0) ![wexp_inst2](https://github.com/user-attachments/assets/c7790182-9d64-48ad-ab33-83b7325604b3)
-
 이 유틸리티 프로그램은 다음과 같은 이유로 제작함
 - 장기간에 걸쳐 다수의 윈도우서버에 적용, 운영하는 경우 exporter를 설치하는 시기마다 최신 버전을 적용하면 버전 관리가 안되며 버그 발생 시 추적이 어려워 버전을 특정하여 고정 설치를 도움
 - 단일 실행 파일만 다운로드하여 단순 구동하는 경우 시스템 재시작 또는 알수 없는 이유로 프로세스가 중단 된 경우 수동으로 시작해주기 전까지 시스템 메트릭 수집이 불가하므로 윈도우 서비스에 등록 시켜 exporter 구동 관리
@@ -45,9 +43,12 @@ pyinstaller -F --noconsole --add-data "github_icon.png;." --add-data "logo.png;.
 
 ## Releases Notes
 
-### 0.4.1
+![wexp_inst1](https://github.com/user-attachments/assets/b95fbe56-e709-4a81-8417-a5dc93cd91f0)
+
+### 0.4.4
 
 - windows_exporter 를 v0.25.1 버전으로 변경지정 (v0.27.1 ➜ v0.25.1)
+- 설치 폴더 및 메트릭 수집 경로를 %Program Files% 하위가 아닌 C:\windows_exporter 로 강제 지정
 - 메트릭 지정 수집 옵션 적용
   - ENABLED_COLLECTORS="ad,adcs,adfs,cache,cpu,cpu_info,cs,container,diskdrive,dfsr,dhcp,dns,exchange,fsrmquota,hyperv,iis,logical_disk,logon,memory,mscluster_cluster,mscluster_network,mscluster_node,mscluster_resource,mscluster_resourcegroup,msmq,mssql,netframework_clrexceptions,netframework_clrinterop,netframework_clrjit,netframework_clrloading,netframework_clrlocksandthreads,netframework_clrmemory,netframework_clrremoting,netframework_clrsecurity,net,os,printer,process,remote_fx,scheduled_task,service,smb,smbclient,smtp,system,tcp,teradici_pcoip,time,thermalzone,terminal_services,textfile,vmware_blast,vmware"
 
