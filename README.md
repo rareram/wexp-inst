@@ -43,6 +43,15 @@ pyinstaller -F --noconsole --add-data "github_icon.png;." --add-data "logo.png;.
 
 ## Releases Notes
 
+![wexp_inst1_v0 4 4](https://github.com/user-attachments/assets/2aa8b34c-b4da-43d9-9b4a-389cd6eb70bd)
+
+### 0.4.4
+
+- windows_exporter 를 v0.25.1 버전으로 변경지정 (v0.27.1 ➜ v0.25.1)
+- 설치 폴더 및 메트릭 수집 경로를 %Program Files% 하위가 아닌 C:\windows_exporter 로 강제 지정
+- 메트릭 지정 수집 옵션 적용
+  - ENABLED_COLLECTORS="ad,adcs,adfs,cache,cpu,cpu_info,cs,container,diskdrive,dfsr,dhcp,dns,exchange,fsrmquota,hyperv,iis,logical_disk,logon,memory,mscluster_cluster,mscluster_network,mscluster_node,mscluster_resource,mscluster_resourcegroup,msmq,mssql,netframework_clrexceptions,netframework_clrinterop,netframework_clrjit,netframework_clrloading,netframework_clrlocksandthreads,netframework_clrmemory,netframework_clrremoting,netframework_clrsecurity,net,os,printer,process,remote_fx,scheduled_task,service,smb,smbclient,smtp,system,tcp,teradici_pcoip,time,thermalzone,terminal_services,textfile,vmware_blast,vmware"
+
 ### 0.4.0
 
 - '서비스 제거' 탭에 '서비스 열기' 버튼 생성 및 기존 버튼 정렬

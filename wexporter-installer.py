@@ -12,6 +12,7 @@ import win32com.shell.shell as shell
 import win32service
 import win32serviceutil
 import pywintypes
+import shutil
 
 # 관리자 권한 확인 및 실행
 def is_admin():
@@ -20,38 +21,36 @@ def is_admin():
     except:
         return False
 
-# def run_as_admin():
-#     try:
-#         if shell.IsUserAnAdmin():
-#             return True
-#         else:
-#             script = os.path.abspath(sys.argv[0])
-#             params = ' '.join([script] + sys.argv[1:])
-#             shell.ShellExecuteEx(lpVerb='runas', lpFile=sys.executable, lpParameters=params)
-#             sys.exit(0)
-#     except Exception as e:
-#         messagebox.showerror("오류", f"관리자 권한으로 실행하는데 실패했습니다: {str(e)}")
-#         return False
-
-    # if not is_admin():
-    #     script = os.path.abspath(sys.argv[0])
-    #     params = ' '.join([script] + sys.argv[1:])
-    #     shell.ShellExecuteEx(lpVerb='runas', lpFile=sys.executable, lpParameters=params)
-    #     sys.exit(0)
-
 class ServiceManagerApp:
     def __init__(self, master):
         self.master = master
         master.title('윈도우 익스포터 설치 도우미')
-        master.geometry('500x500')
+        master.geometry('600x800')
         master.resizable(False, False)
 
-        self.version = '0.4.0'
+        self.version = '0.4.4'
         self.file_path = tk.StringVar()
         self.service_name = tk.StringVar(value='Prometheus Windows Exporter')
         self.service_description = tk.StringVar(value='Exports Windows metrics for Prometheus')
         self.internal_ip = tk.StringVar()
         self.external_ip = tk.StringVar()
+        self.install_dir = r'C:\windows_exporter'
+        self.listen_port = '9182'
+
+        self.metrics = [
+            'ad', 'adcs', 'adfs', 'cache', 'cpu', 'cpu_info', 'cs', 'container', 
+            'diskdrive', 'dfsr', 'dhcp', 'dns', 'exchange', 'fsrmquota', 'hyperv', 
+            'iis', 'logical_disk', 'logon', 'memory', 'mscluster_cluster', 
+            'mscluster_network', 'mscluster_node', 'mscluster_resource', 
+            'mscluster_resourcegroup', 'msmq', 'mssql', 'netframework_clrexceptions', 
+            'netframework_clrinterop', 'netframework_clrjit', 'netframework_clrloading', 
+            'netframework_clrlocksandthreads', 'netframework_clrmemory', 
+            'netframework_clrremoting', 'netframework_clrsecurity', 'net', 'os', 
+            'printer', 'process', 'remote_fx', 'scheduled_task', 'service', 'smb', 
+            'smbclient', 'smtp', 'system', 'tcp', 'teradici_pcoip', 'time', 
+            'thermalzone', 'terminal_services', 'textfile', 'vmware_blast', 'vmware'
+        ]
+        self.metric_vars = {metric: tk.BooleanVar(value=True) for metric in self.metrics}
 
         self.load_images()
         self.create_title()
@@ -113,12 +112,41 @@ class ServiceManagerApp:
 
     def create_install_widgets(self, parent):
         self.create_download_frame(parent)
+        self.create_metric_selection_frame(parent)
         self.create_direct_install_frame(parent)
         self.create_manual_install_frame(parent)
+        # self.create_metric_selection_frame(parent)
         self.create_verification_frame(parent)
         self.create_service_frame(parent)
         self.create_ip_frame(parent)
         self.create_prometheus_frame(parent)
+
+    def create_metric_selection_frame(self, parent):
+        metric_frame = ttk.LabelFrame(parent, text='수집할 메트릭 확인')
+        metric_frame.pack(fill='x', padx=10, pady=5, anchor='w')
+
+        canvas = tk.Canvas(metric_frame)
+        scrollbar = ttk.Scrollbar(metric_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        for i, metric in enumerate(self.metrics):
+            ttk.Checkbutton(scrollable_frame, text=metric, variable=self.metric_vars[metric]).grid(row=i//3, column=i%3, sticky='w', padx=5, pady=2)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+    def browse_textfile_dir(self):
+        directory = filedialog.askdirectory()
+        if directory:
+            self.textfile_dir.set(directory)
 
     def create_download_frame(self, parent):
         download_frame = tk.Frame(parent)
@@ -140,7 +168,7 @@ class ServiceManagerApp:
         if self.github_icon:
             github_icon_label = tk.Label(direct_install_frame, image=self.github_icon)
             github_icon_label.pack(side='left', padx=(5, 0))
-        direct_install_link = tk.Label(direct_install_frame, text='windows_exporter-0.27.1-amd64.msi', fg='blue', cursor='hand2')
+        direct_install_link = tk.Label(direct_install_frame, text='windows_exporter-0.25.1-amd64.msi', fg='blue', cursor='hand2')
         direct_install_link.pack(side='left')
         direct_install_link.bind('<Button-1>', lambda e: self.download_and_install_msi())
 
@@ -249,24 +277,23 @@ class ServiceManagerApp:
     def download_and_install_msi(self):
         # messagebox.showinfo('Direct Install', 'This function would download and install windows_exporter.msi')
         # webbrowser.open_new('https://github.com/prometheus-community/windows_exporter/releases/download/v0.27.1/windows_exporter-0.27.1-amd64.msi')
-        url = 'https://github.com/prometheus-community/windows_exporter/releases/download/v0.27.1/windows_exporter-0.27.1-amd64.msi'
-        filename = 'windows_exporter-0.27.1-amd64.msi'
+        url = 'https://github.com/prometheus-community/windows_exporter/releases/download/v0.25.1/windows_exporter-0.25.1-amd64.msi'
+        filename = 'windows_exporter-0.25.1-amd64.msi'
 
         try:
             response = requests.get(url)
             response.raise_for_status()    # 오류 발생시 예외 처리
         
-            download_folder = os.path.join(os.path.expanduser('~'), 'Downloads')
-            file_path = os.path.join(download_folder, filename)
+            os.makedirs(self.install_dir, exist_ok=True)
+            file_path = os.path.join(self.install_dir, filename)
 
             with open(file_path, 'wb') as file:
                 file.write(response.content)
         
-            subprocess.run(['msiexec', '/i', file_path], check=True)
-            messagebox.showinfo('Success', f'{filename}이(가) 다운로드되었고, 설치가 시작되었습니다.')
-
             self.file_path.set(file_path)
             self.update_file_label()
+
+            self.install_service()
     
         except requests.RequestException as e:
             messagebox.showerror('다운로드 오류', f'파일 다운로드에 실패했습니다: {str(e)}')
@@ -277,16 +304,15 @@ class ServiceManagerApp:
 
     def select_and_move_file(self):
         filename = filedialog.askopenfilename(
-            title='Select windows_exporter-0.27.1-amd64.exe file',
+            title='Select windows_exporter-0.25.1-amd64.msi file',
             filetypes=[('Executable files', '*.exe')]
         )
         if filename:
-            dest_dir = r'C:\Program Files\windows_exporter'
-            os.makedirs(dest_dir, exist_ok=True)
-            dest_file = os.path.join(dest_dir, 'windows_exporter.exe')
+            os.makedirs(self.install_dir, exist_ok=True)
+            dest_file = os.path.join(self.install_dir, 'windows_exporter.exe')
             try:
-                os.replace(filename, dest_file)
-                messagebox.showinfo('Success', f'File moved to {dest_file}')
+                shutil.copy2(filename, dest_file)
+                messagebox.showinfo('Success', f'File copied to {dest_file}')
                 self.file_path.set(dest_file)
                 self.update_file_label()
             except Exception as e:
@@ -312,35 +338,43 @@ class ServiceManagerApp:
         if not self.file_path.get():
             messagebox.showerror('Error', 'Windows Exporter 파일을 선택해주세요')
             return
+        
+        selected_metrics = [metric for metric, var in self.metric_vars.items() if var.get()]
+        metric_string = ",".join(selected_metrics)
+
+        command = [
+            'msiexec', '/i', self.file_path.get(),
+            f'ENABLED_COLLECTORS="{metrics_string}"',
+            f'TEXTFILE_DIR="{self.textfile_dir.get()}"',
+            f'LISTEN_PORT="{self.listen_port.get()}"'
+        ]
 
         try:
-            # 서비스 생성
-            self.run_service_command('create', f'sc create "{self.service_name.get()}" binPath= "{self.file_path.get()}" start= auto DisplayName= "{self.service_name.get()}"')
-            # 서비스 설명 설정
-            self.run_service_command('describe', f'sc description "{self.service_name.get()}" "{self.service_description.get()}"')
-            # 서비스 실패 시 동작 설정
-            self.run_service_command('failure', f'sc failure "{self.service_name.get()}" reset= 86400 actions= restart/60000/restart/60000/restart/60000')
-            # 서비스에 대한 권한 설정
-            self.run_service_command('sdset', f'sc sdset "{self.service_name.get()}" D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)(A;;CCLCSWLOCRRC;;;IU)(A;;CCLCSWLOCRRC;;;SU)')
-            # 서비스 시작
-            self.run_service_command('start', f'sc start "{self.service_name.get()}"')
-
-            messagebox.showinfo('Success', '서비스가 성공적으로 설치되고 시작되었습니다!')
+            subprocess.run(command, check=True)
+            messagebox.showinfo('Success', 'Windows Exporter가 성공적으로 설치되었습니다.')
             self.refresh_service_list()
         except subprocess.CalledProcessError as e:
-            error_message = f'서비스 설치 실패: {e}\n\n'
-            error_message += '다음 사항을 확인해 주세요:\n'
-            error_message += '1. 관리자 권한으로 프로그램을 실행했는지 확인하세요.\n'
-            error_message += '2. 안티바이러스 프로그램이 설치를 차단하고 있는지 확인하세요.\n'
-            error_message += '3. windows_exporter 파일이 올바른 위치에 있는지 확인하세요.\n'
-            error_message += '4. 이미 같은 이름의 서비스가 존재하지 않는지 확인하세요.'
-            messagebox.showerror('Error', error_message)
+            messagebox.showerror('Error', f'설치 중 오류가 발생했습니다: {str(e)}')
 
     def open_services(self):
         try:
             subprocess.Popen(['mmc', 'services.msc'], creationflags=subprocess.CREATE_NEW_CONSOLE)
-        except Excpetion as e:
+        except Exception as e:
             messagebox.showerror('Error', f'서비스 관리 도구를 열 수 없습니다: {str(e)}')
+
+    @classmethod
+    def run_as_admin(cls):
+        try:
+            if shell.IsUserAnAdmin():
+                return True
+            else:
+                script = os.path.abspath(sys.argv[0])
+                params = ' '.join([script] + sys.argv[1:])
+                shell.ShellExecuteEx(lpVerb='runas', lpFile=sys.executable, lpParameters=params)
+                sys.exit(0)
+        except Exception as e:
+            messagebox.showerror("오류", f"관리자 권한으로 실행하는데 실패했습니다: {str(e)}")
+            return False
 
     # def open_service_properties(self, event=None):
     def open_service_properties(self):
@@ -375,20 +409,6 @@ class ServiceManagerApp:
                 messagebox.showerror("오류", "서비스 정보를 가져올 권한이 없습니다. 관리자 권한으로 실행해주세요.")
             else:
                 messagebox.showerror("오류", f"서비스 정보를 가져오는 도중 오류가 발생했습니다: {str(e)}")
-
-
-    def run_as_admin(cls):
-        try:
-            if shell.IsUserAnAdmin():
-                return True
-            else:
-                script = os.path.abspath(sys.argv[0])
-                params = ' '.join([script] + sys.argv[1:])
-                shell.ShellExecuteEx(lpVerb='runas', lpFile=sys.executable, lpParameters=params)
-                sys.exit(0)
-        except Exception as e:
-            messagebox.showerror("오류", f"관리자 권한으로 실행하는데 실패했습니다: {str(e)}")
-            return False
 
     def run_service_command(self, action, command):
         subprocess.run(command, check=True, shell=True)
@@ -438,6 +458,6 @@ if __name__ == '__main__':
     # run_as_admin()
     root = tk.Tk()
     app = ServiceManagerApp(root)
-    if not app.run_as_admin():
+    if not ServiceManagerApp.run_as_admin():
         messagebox.showwarning("경고", "일부 기능이 제한될 수 있습니다. 관리자 권한으로 다시 실행해 주세요.")
     root.mainloop()
