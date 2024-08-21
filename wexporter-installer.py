@@ -13,6 +13,8 @@ import win32service
 import win32serviceutil
 import pywintypes
 import shutil
+import tempfile
+import logging
 
 # 관리자 권한 확인 및 실행
 def is_admin():
@@ -28,14 +30,17 @@ class ServiceManagerApp:
         master.geometry('600x800')
         master.resizable(False, False)
 
-        self.version = '0.4.4'
+        self.version = '0.4.5'
         self.file_path = tk.StringVar()
         self.service_name = tk.StringVar(value='Prometheus Windows Exporter')
         self.service_description = tk.StringVar(value='Exports Windows metrics for Prometheus')
         self.internal_ip = tk.StringVar()
         self.external_ip = tk.StringVar()
-        self.install_dir = r'C:\windows_exporter'
+        # self.install_dir = r'C:\windows_exporter'
+        self.install_dir = os.path.join(os.environ.get('ProgramData', 'C:'), 'windows_exporter')
         self.listen_port = '9182'
+
+        self.setup_logging()
 
         self.metrics = [
             'ad', 'adcs', 'adfs', 'cache', 'cpu', 'cpu_info', 'cs', 'container', 
@@ -55,6 +60,12 @@ class ServiceManagerApp:
         self.load_images()
         self.create_title()
         self.create_widgets()
+    
+    def setup_logging(self):
+        log_dir = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'WindowsExporterInstaller')
+        os.makedirs(log_dir, exist_ok=True)
+        log_file = os.path.join(log_dir, 'wxep-inst.log')
+        logging.basicConfig(filename=log_file, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
     def load_images(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -283,24 +294,25 @@ class ServiceManagerApp:
         try:
             response = requests.get(url)
             response.raise_for_status()    # 오류 발생시 예외 처리
-        
-            os.makedirs(self.install_dir, exist_ok=True)
-            file_path = os.path.join(self.install_dir, filename)
 
-            with open(file_path, 'wb') as file:
-                file.write(response.content)
-        
-            self.file_path.set(file_path)
-            self.update_file_label()
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_file_path = os.path.join(temp_dir, filename)
+                with open(temp_file_path, 'wb') as file:
+                    file.write(response.content)
 
-            self.install_service()
-    
+                self.file_path.set(temp_file_path)
+                self.update_file_label()
+
+                self.install_service()
+        
         except requests.RequestException as e:
-            messagebox.showerror('다운로드 오류', f'파일 다운로드에 실패했습니다: {str(e)}')
-        except subprocess.CalledProcessError as e:
-            messagebox.showerror('설치 오류', f'설치 시작에 실패했습니다: {str(e)}')
+            error_msg = f'파일 다운로드에 실패했습니다: {str(e)}'
+            logging.error(error_msg)
+            messagebox.showerror('다운로드 오류', error_msg)
         except Exception as e:
-            messagebox.showerror('오류', f'예상치 못한 오류가 발생했습니다: {str(e)}')
+            error_msg =  f'예상치 못한 오류가 발생했습니다: {str(e)}'
+            logging.error(error_msg)
+            messagebox.showerror('오류', error_msg)
 
     def select_and_move_file(self):
         filename = filedialog.askopenfilename(
@@ -350,11 +362,18 @@ class ServiceManagerApp:
         ]
 
         try:
+            os.makedirs(self.install_dir, exist_ok=True)
             subprocess.run(command, check=True)
             messagebox.showinfo('Success', 'Windows Exporter가 성공적으로 설치되었습니다.')
             self.refresh_service_list()
         except subprocess.CalledProcessError as e:
-            messagebox.showerror('Error', f'설치 중 오류가 발생했습니다: {str(e)}')
+            error_msg =  f'설치 중 오류가 발생했습니다: {str(e)}'
+            logging.error(error_msg)
+            messagebox.showerror('Error', error_msg)
+        except Exception as e:
+            error_msg = f'예상치 못한 오류가 발생했습니다: {str(e)}'
+            logging.error(error_msg)
+            messagebox.showerror('Error', error_msg)
 
     def open_services(self):
         try:
@@ -373,7 +392,9 @@ class ServiceManagerApp:
                 shell.ShellExecuteEx(lpVerb='runas', lpFile=sys.executable, lpParameters=params)
                 sys.exit(0)
         except Exception as e:
-            messagebox.showerror("오류", f"관리자 권한으로 실행하는데 실패했습니다: {str(e)}")
+            error_msg = f"관리자 권한으로 실행하는데 실패했습니다: {str(e)}"
+            logging.error(error_msg)
+            messagebox.showerror("오류", error_msg) 
             return False
 
     # def open_service_properties(self, event=None):
@@ -455,9 +476,10 @@ class ServiceManagerApp:
             messagebox.showerror('Error', f'서비스 제거 실패: {e}')
 
 if __name__ == '__main__':
-    # run_as_admin()
+    if not ServiceManagerApp.run_as_admin():
+        messagebox.showwarning("경고", "관리자 권한으로 다시 실행해 주세요. 프로그램을 종료합니다.")
+        sys.exit(1)
+    
     root = tk.Tk()
     app = ServiceManagerApp(root)
-    if not ServiceManagerApp.run_as_admin():
-        messagebox.showwarning("경고", "일부 기능이 제한될 수 있습니다. 관리자 권한으로 다시 실행해 주세요.")
     root.mainloop()
