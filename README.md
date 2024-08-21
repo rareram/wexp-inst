@@ -43,6 +43,10 @@ pyinstaller -F --noconsole --add-data "github_icon.png;." --add-data "logo.png;.
 
 ## Releases Notes
 
+### 0.4.5
+
+- 권한문제 수정
+
 ![wexp_inst1_v0 4 4](https://github.com/user-attachments/assets/2aa8b34c-b4da-43d9-9b4a-389cd6eb70bd)
 
 ### 0.4.4
